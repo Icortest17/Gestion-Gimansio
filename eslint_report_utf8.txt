@@ -1,0 +1,20 @@
+﻿
+C:\Users\icort\Desktop\Isaac\Apps Antigravity\Gestion Gimnasio\src\app\page.tsx
+    4:10  warning  'Button' is defined but never used                               @typescript-eslint/no-unused-vars
+   31:41  warning  'alumnosErr' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+   39:39  warning  'pagosErr' is assigned a value but never used                    @typescript-eslint/no-unused-vars
+  100:59  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  100:72  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\icort\Desktop\Isaac\Apps Antigravity\Gestion Gimnasio\src\components\NuevoAlumnoModal.tsx
+  38:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  48:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\icort\Desktop\Isaac\Apps Antigravity\Gestion Gimnasio\src\components\ui\dialog.tsx
+  5:10  warning  'Search' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\icort\Desktop\Isaac\Apps Antigravity\Gestion Gimnasio\src\components\ui\input.tsx
+  4:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+Ô£û 9 problems (5 errors, 4 warnings)
+

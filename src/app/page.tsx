@@ -1,65 +1,132 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Search } from "lucide-react";
+import { NuevoAlumnoModal } from "@/components/NuevoAlumnoModal";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/lib/supabase";
+import { Database } from "@/types/database.types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+type Alumno = Database["public"]["Tables"]["perfiles_alumnos"]["Row"];
+type Pago = Database["public"]["Tables"]["registro_pagos"]["Row"];
 
 export default function Home() {
+  const [alumnos, setAlumnos] = useState<Alumno[]>([]);
+  const [pagosMesActual, setPagosMesActual] = useState<Pago[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    async function loadData() {
+      // Load Alumnos
+      const { data: alumnosData } = await supabase
+        .from("perfiles_alumnos")
+        .select("*")
+        .order("nombre_completo");
+      if (alumnosData) setAlumnos(alumnosData);
+
+      // Load Pagos for current month
+      const currentMonth = new Date().toISOString().slice(0, 7) + "-01"; // YYYY-MM-01 format
+      const { data: pagosData } = await supabase
+        .from("registro_pagos")
+        .select("*")
+        .gte("mes_correspondiente", currentMonth);
+      if (pagosData) setPagosMesActual(pagosData);
+
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  const refreshAlumnos = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("perfiles_alumnos").select("*").order("nombre_completo");
+    if (data) setAlumnos(data);
+    setLoading(false);
+  };
+
+  const hasPaid = (alumnoId: string) => {
+    return pagosMesActual.some((p) => p.alumno_id === alumnoId);
+  };
+
+  const filteredAlumnos = alumnos.filter(alumno =>
+    alumno.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    alumno.disciplina.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard General</h1>
+          <p className="text-muted-foreground text-foreground/70">Gestiona tus alumnos y los pagos del mes en curso.</p>
+        </div>
+        <NuevoAlumnoModal onAlumnoCreated={refreshAlumnos} />
+      </div>
+
+      <div className="flex items-center space-x-2 bg-card/50 p-1 rounded-md border border-border">
+        <Search className="h-5 w-5 text-muted-foreground ml-2" />
+        <Input
+          className="border-0 focus-visible:ring-0 shadow-none bg-transparent"
+          placeholder="Buscar alumno por nombre o disciplina..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
+
+      <div className="rounded-md border border-border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="w-[300px]">Nombre</TableHead>
+              <TableHead>Disciplina</TableHead>
+              <TableHead>Teléfono</TableHead>
+              <TableHead className="text-right">Cuota</TableHead>
+              <TableHead className="text-right">Estado (Mes Actual)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                  Cargando datos...
+                </TableCell>
+              </TableRow>
+            ) : filteredAlumnos.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                  {alumnos.length === 0 ? "No hay alumnos registrados." : "No hay resultados para la búsqueda."}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredAlumnos.map((alumno) => (
+                <TableRow key={alumno.id} className="border-border">
+                  <TableCell className="font-medium text-foreground">{alumno.nombre_completo}</TableCell>
+                  <TableCell>{alumno.disciplina}</TableCell>
+                  <TableCell className="text-muted-foreground">{alumno.telefono || "-"}</TableCell>
+                  <TableCell className="text-right font-medium">${alumno.precio_mensual}</TableCell>
+                  <TableCell className="text-right">
+                    {hasPaid(alumno.id) ? (
+                      <Badge variant="success">Pagado</Badge>
+                    ) : (
+                      <Badge variant="destructive">Impago</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
