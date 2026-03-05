@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/types/database.types";
 import { getMesActual } from "@/lib/utils-pagos";
+import { KpiStats } from "@/components/KpiStats";
 import {
   Table,
   TableBody,
@@ -108,6 +109,8 @@ export default function Home() {
         </div>
         <NuevoAlumnoModal onAlumnoCreated={refreshAlumnos} />
       </div>
+
+      <KpiStats alumnos={alumnos} pagos={pagosMesActual} />
 
       <div className="flex items-center space-x-2 bg-card/50 p-1 rounded-md border border-border">
         <Search className="h-5 w-5 text-muted-foreground ml-2" />
