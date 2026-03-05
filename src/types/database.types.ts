@@ -17,6 +17,7 @@ export type Database = {
       perfiles_alumnos: {
         Row: {
           disciplina: Database["public"]["Enums"]["disciplina_enum"]
+          entrenador_asignado: Database["public"]["Enums"]["entrenador_enum"]
           fecha_ingreso: string | null
           id: string
           nombre_completo: string
@@ -25,6 +26,7 @@ export type Database = {
         }
         Insert: {
           disciplina: Database["public"]["Enums"]["disciplina_enum"]
+          entrenador_asignado: Database["public"]["Enums"]["entrenador_enum"]
           fecha_ingreso?: string | null
           id?: string
           nombre_completo: string
@@ -33,6 +35,7 @@ export type Database = {
         }
         Update: {
           disciplina?: Database["public"]["Enums"]["disciplina_enum"]
+          entrenador_asignado?: Database["public"]["Enums"]["entrenador_enum"]
           fecha_ingreso?: string | null
           id?: string
           nombre_completo?: string
@@ -81,7 +84,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      disciplina_enum: "Boxeo" | "MMA" | "Muay Thai" | "BJJ"
+      disciplina_enum: "Boxeo" | "Sanda" | "BJJ"
+      entrenador_enum: "Chamon" | "Lupu" | "Isaac" | "Angel" | "Carlos"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -209,8 +213,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      disciplina_enum: ["Boxeo", "MMA", "Muay Thai", "BJJ"],
+      disciplina_enum: ["Boxeo", "Sanda", "BJJ"],
+      entrenador_enum: ["Chamon", "Lupu", "Isaac", "Angel", "Carlos"],
     },
   },
 } as const
-
