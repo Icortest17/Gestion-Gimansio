@@ -5,6 +5,7 @@ import { Search, Calendar, Wallet, TrendingUp, Users, Loader2, ChevronRight } fr
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -28,6 +29,7 @@ export default function HistorialPage() {
 
     useEffect(() => {
         async function loadPagos() {
+            setLoading(true);
             const { data, error } = await supabase
                 .from("registro_pagos")
                 .select("*, perfiles_alumnos(nombre_completo)")
@@ -59,129 +61,179 @@ export default function HistorialPage() {
         pago.mes_correspondiente.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const exportToCsv = () => {
+        const headers = ["Alumno", "Mes Correspondiente", "Monto", "Fecha Registro"];
+        const rows = filteredPagos.map((pago: any) => [
+            pago.perfiles_alumnos?.nombre_completo || "Desconocido",
+            pago.mes_correspondiente,
+            `${pago.monto}€`,
+            pago.created_at ? new Date(pago.created_at).toLocaleDateString() : "-"
+        ]);
+
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `pagos_fightmanager_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white">Análisis Histórico</h1>
-                    <p className="text-zinc-500 mt-1">Consulta la evolución de ingresos y registros de pagos pasados.</p>
+        <div className="space-y-12 animate-in fade-in duration-500 pb-20">
+            {/* Header Profesional con Exportación y Gráfico */}
+            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 bg-zinc-950/30 p-8 rounded-3xl border border-zinc-900 shadow-2xl">
+                <div className="flex-1 space-y-4">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-1.5 bg-rose-600 rounded-full shadow-[0_0_15px_rgba(225,29,72,0.5)]" />
+                        <div>
+                            <h1 className="text-4xl font-black tracking-tighter text-white uppercase italic leading-none">
+                                ANÁLISIS <span className="text-rose-600">HISTÓRICO</span>
+                            </h1>
+                            <p className="text-zinc-500 font-medium mt-1">Control de ingresos y registros de mensualidades pasadas.</p>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Mini Gráfico de Tendencia en el Header */}
-                {!loading && resumenArray.length > 0 && (
-                    <div className="bg-zinc-950 border border-zinc-900 p-4 rounded-xl w-full md:w-64">
-                        <div className="flex items-center gap-2 mb-2">
-                            <TrendingUp size={14} className="text-rose-500" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Tendencia</span>
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <Button
+                        onClick={exportToCsv}
+                        variant="outline"
+                        className="w-full sm:w-auto bg-black border-zinc-800 text-zinc-400 hover:text-white hover:border-rose-600 h-12 px-8 rounded-2xl transition-all shadow-lg hover:shadow-rose-600/10 active:scale-95"
+                    >
+                        Exportar CSV
+                    </Button>
+
+                    {!loading && resumenArray.length > 0 && (
+                        <div className="bg-black border border-zinc-800 p-5 rounded-3xl w-full sm:w-72 shadow-2xl relative overflow-hidden group">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <TrendingUp size={14} className="text-rose-500" />
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Tendencia</span>
+                                </div>
+                                <span className="text-[10px] text-zinc-600 group-hover:text-rose-500 transition-colors">Últimos meses</span>
+                            </div>
+                            <TrendChart data={resumenArray as any} />
                         </div>
-                        <TrendChart data={resumenArray as any} />
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
-            {/* Resumen de Meses */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {loading ? (
-                    Array(3).fill(0).map((_, i) => (
-                        <Card key={i} className="bg-zinc-950 border-zinc-900 animate-pulse">
-                            <CardContent className="h-24" />
-                        </Card>
-                    ))
-                ) : resumenArray.length === 0 ? (
-                    <Card className="bg-zinc-950 border-zinc-900 md:col-span-3">
-                        <CardContent className="py-10 text-center text-zinc-500">
-                            No hay datos históricos registrados aún.
-                        </CardContent>
-                    </Card>
-                ) : (
-                    resumenArray.map((mes: any) => (
-                        <Card key={mes.mes} className="bg-black border-zinc-900 hover:border-rose-500/50 transition-colors group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-bold text-zinc-400 group-hover:text-rose-500 transition-colors uppercase tracking-widest">
-                                    {mes.mes}
-                                </CardTitle>
-                                <Calendar className="h-4 w-4 text-rose-600" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-white">{mes.total.toLocaleString()}€</div>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <Users className="h-3 w-3 text-zinc-500" />
-                                    <p className="text-xs text-zinc-500">
-                                        {mes.alumnos.size} alumnos pagaron
-                                    </p>
-                                </div>
+            {/* Grid de Resumen por Meses */}
+            <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <Calendar className="text-rose-600" size={20} />
+                    <h2 className="text-xl font-bold text-white tracking-tight uppercase tracking-widest text-sm">Resumen Mensual</h2>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    {loading ? (
+                        Array(4).fill(0).map((_, i) => (
+                            <Card key={i} className="bg-zinc-950/50 border-zinc-900 animate-pulse rounded-2xl">
+                                <CardContent className="h-32" />
+                            </Card>
+                        ))
+                    ) : resumenArray.length === 0 ? (
+                        <Card className="bg-zinc-950/50 border-zinc-900 col-span-full rounded-2xl border-dashed">
+                            <CardContent className="py-16 text-center text-zinc-500">
+                                No hay datos históricos registrados aún.
                             </CardContent>
                         </Card>
-                    ))
-                )}
+                    ) : (
+                        resumenArray.map((mes: any) => (
+                            <Card key={mes.mes} className="bg-black border-zinc-900 hover:border-rose-500/50 transition-all duration-300 group rounded-2xl shadow-xl hover:-translate-y-1">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-xs font-bold text-zinc-500 group-hover:text-rose-500 transition-colors uppercase tracking-widest">
+                                        {mes.mes}
+                                    </CardTitle>
+                                    <div className="p-2 rounded-lg bg-zinc-900 group-hover:bg-rose-600/10 transition-colors">
+                                        <Calendar className="h-4 w-4 text-zinc-600 group-hover:text-rose-600" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-3xl font-black text-white italic">{mes.total.toLocaleString()}€</div>
+                                    <div className="flex items-center gap-2 mt-3 bg-zinc-950 p-2 rounded-xl border border-zinc-900">
+                                        <Users className="h-3.5 w-3.5 text-zinc-500" />
+                                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">
+                                            {mes.alumnos.size} alumnos pagaron
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))
+                    )}
+                </div>
             </div>
 
-            {/* Buscador y Tabla de Pagos */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-white">Buscador de Pagos</h2>
-                    <div className="flex items-center gap-2 text-rose-500 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20">
-                        <TrendingUp size={14} />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Historial Completo</span>
+            {/* Buscador y Tabla de Pagos Detallada */}
+            <div className="space-y-6 pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-900 pb-6">
+                    <div className="space-y-1">
+                        <h2 className="text-2xl font-bold text-white tracking-tight italic uppercase">Registro <span className="text-rose-600">Global</span></h2>
+                        <p className="text-zinc-500 text-sm">Listado detallado de todas las transacciones históricas.</p>
+                    </div>
+
+                    <div className="flex items-center space-x-3 bg-black p-1.5 pl-4 rounded-2xl border border-zinc-800 w-full max-w-md shadow-2xl">
+                        <Search className="h-5 w-5 text-zinc-600" />
+                        <Input
+                            className="border-0 focus-visible:ring-0 shadow-none bg-transparent text-white placeholder:text-zinc-700"
+                            placeholder="Buscar por nombre o mes..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                 </div>
 
-                <div className="flex items-center space-x-2 bg-zinc-950 p-1 rounded-lg border border-zinc-900 max-w-md">
-                    <Search className="h-5 w-5 text-zinc-500 ml-2" />
-                    <Input
-                        className="border-0 focus-visible:ring-0 shadow-none bg-transparent text-white"
-                        placeholder="Buscar por nombre de alumno o mes..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-
-                <div className="rounded-xl border border-zinc-900 bg-black overflow-hidden shadow-2xl">
+                <div className="rounded-3xl border border-zinc-900 bg-black overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
                     <Table>
                         <TableHeader>
-                            <TableRow className="border-zinc-900 hover:bg-transparent bg-zinc-950/50">
-                                <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest">Alumno</TableHead>
-                                <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest text-center">Mes</TableHead>
-                                <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest text-right">Fecha Registro</TableHead>
-                                <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest text-right">Importe</TableHead>
-                                <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest text-right">Estado</TableHead>
+                            <TableRow className="border-zinc-900 hover:bg-transparent bg-zinc-950/80">
+                                <TableHead className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest px-6 py-5">Alumno</TableHead>
+                                <TableHead className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest text-center">Mes</TableHead>
+                                <TableHead className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest text-right">Fecha Registro</TableHead>
+                                <TableHead className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest text-right px-6">Importe</TableHead>
+                                <TableHead className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest text-right px-6">Estado</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-20">
-                                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-rose-600" />
-                                        <span className="text-zinc-500 mt-2 block">Cargando registros...</span>
+                                    <TableCell colSpan={5} className="text-center py-32">
+                                        <Loader2 className="h-10 w-10 animate-spin mx-auto text-rose-600" />
+                                        <span className="text-zinc-600 mt-4 block font-bold text-xs uppercase tracking-widest">Sincronizando registros...</span>
                                     </TableCell>
                                 </TableRow>
                             ) : filteredPagos.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-20 text-zinc-500">
-                                        No se encontraron pagos con los criterios de búsqueda.
+                                    <TableCell colSpan={5} className="text-center py-32 text-zinc-600 font-medium">
+                                        No se encontraron registros para esta búsqueda.
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 filteredPagos.map((pago: any) => (
-                                    <TableRow key={pago.id} className="border-zinc-900 hover:bg-zinc-900/30 transition-colors group">
-                                        <TableCell className="font-medium text-white group-hover:text-rose-400 transition-colors">
+                                    <TableRow key={pago.id} className="border-zinc-900 hover:bg-zinc-900/30 transition-all group">
+                                        <TableCell className="font-semibold text-white group-hover:text-rose-500 transition-colors px-6 py-4">
                                             {pago.perfiles_alumnos?.nombre_completo || "Desconocido"}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <Badge variant="outline" className="border-zinc-800 text-zinc-400 font-normal">
+                                            <Badge variant="outline" className="border-zinc-800 text-zinc-500 font-normal bg-zinc-950/50">
                                                 {pago.mes_correspondiente}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right text-zinc-500 text-xs">
+                                        <TableCell className="text-right text-zinc-600 text-xs font-mono">
                                             {pago.created_at ? new Date(pago.created_at).toLocaleDateString() : "-"}
                                         </TableCell>
-                                        <TableCell className="text-right font-bold text-white">
+                                        <TableCell className="text-right font-black text-white px-6">
                                             {pago.monto}€
                                         </TableCell>
-                                        <TableCell className="text-right">
-                                            <Badge className="bg-emerald-600/10 text-emerald-500 border-emerald-500/20">
-                                                Completado
-                                            </Badge>
+                                        <TableCell className="text-right px-6">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                                                <div className="h-1 w-1 bg-emerald-500 rounded-full animate-pulse" />
+                                                <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Verificado</span>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))

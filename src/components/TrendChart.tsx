@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts";
 
 interface TrendChartProps {
@@ -7,8 +8,16 @@ interface TrendChartProps {
 }
 
 export function TrendChart({ data }: TrendChartProps) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     // Tomar los últimos 6 meses para el gráfico
     const chartData = [...data].reverse().slice(-6);
+
+    if (!mounted) return <div className="h-[200px] w-full mt-4 bg-zinc-900/10 animate-pulse rounded-lg" />;
 
     return (
         <div className="h-[200px] w-full mt-4">
