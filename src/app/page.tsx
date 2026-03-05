@@ -70,6 +70,13 @@ export default function Home() {
   const refreshAlumnos = async () => {
     const { data } = await supabase.from("perfiles_alumnos").select("*").order("nombre_completo");
     if (data) setAlumnos(data);
+
+    // Also refresh payments to ensure sync
+    const { data: pagosData } = await supabase
+      .from("registro_pagos")
+      .select("*")
+      .eq("mes_correspondiente", mesActualStr);
+    if (pagosData) setPagosMesActual(pagosData || []);
   };
 
   const handleDeleteAlumno = async (id: string) => {
