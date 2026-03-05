@@ -26,6 +26,7 @@ export default function HistorialPage() {
     const [pagos, setPagos] = useState<Pago[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedMes, setSelectedMes] = useState<string | null>(null);
 
     useEffect(() => {
         async function loadPagos() {
@@ -33,7 +34,7 @@ export default function HistorialPage() {
             const { data, error } = await supabase
                 .from("registro_pagos")
                 .select("*, perfiles_alumnos(nombre_completo)")
-                .order("created_at", { ascending: false });
+                .order("fecha_pago", { ascending: false });
 
             if (data) setPagos(data as any);
             setLoading(false);
@@ -47,7 +48,7 @@ export default function HistorialPage() {
         if (!acc[mes]) {
             acc[mes] = { mes, total: 0, alumnos: new Set() };
         }
-        acc[mes].total += pago.monto;
+        acc[mes].total += Number(pago.monto);
         acc[mes].alumnos.add(pago.alumno_id);
         return acc;
     }, {});
@@ -56,10 +57,12 @@ export default function HistorialPage() {
         return b.mes.localeCompare(a.mes);
     });
 
-    const filteredPagos = pagos.filter(pago =>
-        pago.perfiles_alumnos?.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pago.mes_correspondiente.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredPagos = pagos.filter(pago => {
+        const matchesSearch = pago.perfiles_alumnos?.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            pago.mes_correspondiente.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesMes = !selectedMes || pago.mes_correspondiente === selectedMes;
+        return matchesSearch && matchesMes;
+    });
 
     const exportToCsv = () => {
         const headers = ["Alumno", "Mes Correspondiente", "Monto", "Fecha Registro"];
@@ -124,9 +127,21 @@ export default function HistorialPage() {
 
             {/* Grid de Resumen por Meses */}
             <div className="space-y-6">
-                <div className="flex items-center gap-3">
-                    <Calendar className="text-rose-600" size={20} />
-                    <h2 className="text-xl font-bold text-white tracking-tight uppercase tracking-widest text-sm">Resumen Mensual</h2>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Calendar className="text-rose-600" size={20} />
+                        <h2 className="text-xl font-bold text-white tracking-tight uppercase tracking-widest text-sm">Resumen Mensual</h2>
+                    </div>
+                    {selectedMes && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedMes(null)}
+                            className="text-zinc-500 hover:text-rose-500 text-[10px] font-bold uppercase tracking-widest"
+                        >
+                            Ver Todos los Registros
+                        </Button>
+                    )}
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -144,13 +159,17 @@ export default function HistorialPage() {
                         </Card>
                     ) : (
                         resumenArray.map((mes: any) => (
-                            <Card key={mes.mes} className="bg-black border-zinc-900 hover:border-rose-500/50 transition-all duration-300 group rounded-2xl shadow-xl hover:-translate-y-1">
+                            <Card
+                                key={mes.mes}
+                                onClick={() => setSelectedMes(mes.mes === selectedMes ? null : mes.mes)}
+                                className={`bg-black transition-all duration-300 group rounded-2xl shadow-xl cursor-pointer ${selectedMes === mes.mes ? "border-rose-600 ring-1 ring-rose-600/50 scale-[1.02]" : "border-zinc-900 hover:border-rose-500/50 hover:-translate-y-1"}`}
+                            >
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-xs font-bold text-zinc-500 group-hover:text-rose-500 transition-colors uppercase tracking-widest">
+                                    <CardTitle className={`text-xs font-bold uppercase tracking-widest transition-colors ${selectedMes === mes.mes ? "text-rose-500" : "text-zinc-500 group-hover:text-rose-500"}`}>
                                         {mes.mes}
                                     </CardTitle>
-                                    <div className="p-2 rounded-lg bg-zinc-900 group-hover:bg-rose-600/10 transition-colors">
-                                        <Calendar className="h-4 w-4 text-zinc-600 group-hover:text-rose-600" />
+                                    <div className={`p-2 rounded-lg transition-colors ${selectedMes === mes.mes ? "bg-rose-600/20" : "bg-zinc-900 group-hover:bg-rose-600/10"}`}>
+                                        <Calendar className={`h-4 w-4 ${selectedMes === mes.mes ? "text-rose-500" : "text-zinc-600 group-hover:text-rose-600"}`} />
                                     </div>
                                 </CardHeader>
                                 <CardContent>
@@ -172,8 +191,12 @@ export default function HistorialPage() {
             <div className="space-y-6 pt-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-900 pb-6">
                     <div className="space-y-1">
-                        <h2 className="text-2xl font-bold text-white tracking-tight italic uppercase">Registro <span className="text-rose-600">Global</span></h2>
-                        <p className="text-zinc-500 text-sm">Listado detallado de todas las transacciones históricas.</p>
+                        <h2 className="text-2xl font-bold text-white tracking-tight italic uppercase">
+                            Registro <span className="text-rose-600">{selectedMes ? selectedMes : "Global"}</span>
+                        </h2>
+                        <p className="text-zinc-500 text-sm">
+                            {selectedMes ? `Mostrando pagos registrados para ${selectedMes}.` : "Listado detallado de todas las transacciones históricas."}
+                        </p>
                     </div>
 
                     <div className="flex items-center space-x-3 bg-black p-1.5 pl-4 rounded-2xl border border-zinc-800 w-full max-w-md shadow-2xl">
@@ -224,7 +247,7 @@ export default function HistorialPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right text-zinc-600 text-xs font-mono">
-                                            {pago.created_at ? new Date(pago.created_at).toLocaleDateString() : "-"}
+                                            {pago.fecha_pago ? new Date(pago.fecha_pago).toLocaleDateString() : "-"}
                                         </TableCell>
                                         <TableCell className="text-right font-black text-white px-6">
                                             {pago.monto}€
