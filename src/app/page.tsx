@@ -39,6 +39,7 @@ type Pago = Database["public"]["Tables"]["registro_pagos"]["Row"];
 export default function Home() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [pagosMesActual, setPagosMesActual] = useState<Pago[]>([]);
+  const [gastosMesActual, setGastosMesActual] = useState<Database["public"]["Tables"]["gastos"]["Row"][]>([]);
   const [loading, setLoading] = useState(true);
   const [processingPago, setProcessingPago] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -69,6 +70,17 @@ export default function Home() {
 
         if (pgError) throw pgError;
         setPagosMesActual(pagosData || []);
+
+        // Load Gastos for current month
+        // Nota: Filtrado simple por fecha (mes actual)
+        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+        const { data: gastosData, error: gsError } = await supabase
+          .from("gastos")
+          .select("*")
+          .gte("fecha_gasto", startOfMonth);
+
+        if (gsError) throw gsError;
+        setGastosMesActual(gastosData || []);
       } catch (err) {
         console.error("Error cargando Dashboard:", err);
       } finally {
@@ -160,7 +172,11 @@ export default function Home() {
         <NuevoAlumnoModal onAlumnoCreated={refreshAlumnos} />
       </div>
 
-      <KpiStats alumnos={alumnos} pagos={pagosMesActual} />
+      <KpiStats
+        alumnos={alumnos}
+        pagos={pagosMesActual}
+        gastos={gastosMesActual}
+      />
 
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-zinc-950/50 p-6 rounded-2xl border border-zinc-900 border-dashed">
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
@@ -179,7 +195,8 @@ export default function Home() {
             className="h-11 w-full sm:w-48 bg-black border border-zinc-900 rounded-lg px-3 text-sm text-zinc-400 focus:outline-none focus:border-rose-600 appearance-none transition-colors"
           >
             <option value="Todos">Todos los entrenadores</option>
-            {["Chamon", "Lupu", "Isaac", "Angel", "Carlos"].map(e => (
+            {/* Cargando dinámicamente desde los alumnos actuales para simplicidad inmediata */}
+            {Array.from(new Set(alumnos.map(a => a.entrenador_asignado))).sort().map(e => (
               <option key={e} value={e}>{e}</option>
             ))}
           </select>

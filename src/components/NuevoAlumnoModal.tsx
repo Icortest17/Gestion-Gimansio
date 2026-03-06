@@ -132,17 +132,18 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                             <Label htmlFor="entrenador" className="text-foreground">Entrenador</Label>
                             <Select
                                 value={formData.entrenador_asignado}
-                                onValueChange={(value: Entrenador) => setFormData({ ...formData, entrenador_asignado: value })}
+                                onValueChange={(value: any) => setFormData({ ...formData, entrenador_asignado: value })}
                             >
                                 <SelectTrigger id="entrenador" className="bg-background border-border">
                                     <SelectValue placeholder="Seleccionar" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
-                                    <SelectItem value="Chamon">Chamon</SelectItem>
-                                    <SelectItem value="Lupu">Lupu</SelectItem>
-                                    <SelectItem value="Isaac">Isaac</SelectItem>
-                                    <SelectItem value="Angel">Angel</SelectItem>
-                                    <SelectItem value="Carlos">Carlos</SelectItem>
+                                    {/* Cargamos los entrenadores dinámicamente si los tuviéramos, 
+                                        por ahora mantenemos los nombres pero permitimos que 
+                                        la UI sea agnóstica al enum si es necesario */}
+                                    {["Chamon", "Lupu", "Isaac", "Angel", "Carlos"].map(e => (
+                                        <SelectItem key={e} value={e}>{e}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
