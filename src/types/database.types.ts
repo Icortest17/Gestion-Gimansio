@@ -9,18 +9,39 @@
 export type Database = {
   public: {
     Tables: {
+      disciplinas: {
+        Row: {
+          id: string
+          nombre: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          nombre?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       entrenadores: {
         Row: {
+          porcentaje_comision: number | null
           fecha_alta: string | null
           id: string
           nombre: string
         }
         Insert: {
+          porcentaje_comision?: number | null
           fecha_alta?: string | null
           id?: string
           nombre: string
         }
         Update: {
+          porcentaje_comision?: number | null
           fecha_alta?: string | null
           id?: string
           nombre?: string
@@ -34,6 +55,7 @@ export type Database = {
           fecha_gasto: string | null
           id: string
           monto: number
+          origen_fijo_id: string | null
         }
         Insert: {
           categoria?: string | null
@@ -41,6 +63,7 @@ export type Database = {
           fecha_gasto?: string | null
           id?: string
           monto: number
+          origen_fijo_id?: string | null
         }
         Update: {
           categoria?: string | null
@@ -48,13 +71,49 @@ export type Database = {
           fecha_gasto?: string | null
           id?: string
           monto?: number
+          origen_fijo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gastos_origen_fijo_id_fkey"
+            columns: ["origen_fijo_id"]
+            isOneToOne: false
+            referencedRelation: "gastos_fijos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gastos_fijos: {
+        Row: {
+          activo: boolean | null
+          categoria: string
+          created_at: string | null
+          descripcion: string
+          id: string
+          monto: number
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria: string
+          created_at?: string | null
+          descripcion: string
+          id?: string
+          monto: number
+        }
+        Update: {
+          activo?: boolean | null
+          categoria?: string
+          created_at?: string | null
+          descripcion?: string
+          id?: string
+          monto?: number
         }
         Relationships: []
       }
       perfiles_alumnos: {
         Row: {
-          disciplina: Database["public"]["Enums"]["disciplina_enum"]
-          entrenador_asignado: Database["public"]["Enums"]["entrenador_enum"]
+          disciplina: string
+          entrenador_asignado: string
           entrenador_id: string | null
           fecha_ingreso: string | null
           id: string
@@ -63,8 +122,8 @@ export type Database = {
           telefono: string | null
         }
         Insert: {
-          disciplina: Database["public"]["Enums"]["disciplina_enum"]
-          entrenador_asignado: Database["public"]["Enums"]["entrenador_enum"]
+          disciplina: string
+          entrenador_asignado: string
           entrenador_id?: string | null
           fecha_ingreso?: string | null
           id?: string
@@ -73,8 +132,8 @@ export type Database = {
           telefono?: string | null
         }
         Update: {
-          disciplina?: Database["public"]["Enums"]["disciplina_enum"]
-          entrenador_asignado?: Database["public"]["Enums"]["entrenador_enum"]
+          disciplina?: string
+          entrenador_asignado?: string
           entrenador_id?: string | null
           fecha_ingreso?: string | null
           id?: string
@@ -91,6 +150,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      registro_automatizacion: {
+        Row: {
+          mes_año: string
+          procesado_en: string | null
+        }
+        Insert: {
+          mes_año: string
+          procesado_en?: string | null
+        }
+        Update: {
+          mes_año?: string
+          procesado_en?: string | null
+        }
+        Relationships: []
       }
       registro_pagos: {
         Row: {
@@ -132,8 +206,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      disciplina_enum: "Boxeo" | "Sanda" | "BJJ"
-      entrenador_enum: "Chamon" | "Lupu" | "Isaac" | "Angel" | "Carlos"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never

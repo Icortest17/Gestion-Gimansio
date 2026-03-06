@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Search, CreditCard, Loader2, MoreVertical, Trash, Pencil } from "lucide-react";
+import { Search, CreditCard, Loader2, MoreVertical, Trash, Pencil, Sparkles } from "lucide-react";
 import { NuevoAlumnoModal } from "@/components/NuevoAlumnoModal";
 import { EditarAlumnoModal } from "@/components/EditarAlumnoModal";
 import { Input } from "@/components/ui/input";
@@ -35,78 +35,148 @@ import {
 
 type Alumno = Database["public"]["Tables"]["perfiles_alumnos"]["Row"];
 type Pago = Database["public"]["Tables"]["registro_pagos"]["Row"];
+type Gasto = Database["public"]["Tables"]["gastos"]["Row"];
 
 export default function Home() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [pagosMesActual, setPagosMesActual] = useState<Pago[]>([]);
-  const [gastosMesActual, setGastosMesActual] = useState<Database["public"]["Tables"]["gastos"]["Row"][]>([]);
+  const [gastosMesActual, setGastosMesActual] = useState<Gasto[]>([]);
+  const [disciplinas, setDisciplinas] = useState<{ id: string, nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingPago, setProcessingPago] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDisciplina, setFilterDisciplina] = useState("Todos");
   const [filterEntrenador, setFilterEntrenador] = useState("Todos");
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const mesActualStr = getMesActual();
 
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      try {
-        // Load Alumnos
-        const { data: alumnosData, error: alError } = await supabase
-          .from("perfiles_alumnos")
-          .select("*")
-          .order("nombre_completo");
-
-        if (alError) throw new Error(`Alumnos: ${alError.message}`);
-        setAlumnos(alumnosData || []);
-
-        // Load Pagos for current month
-        const { data: pagosData, error: pgError } = await supabase
-          .from("registro_pagos")
-          .select("*")
-          .eq("mes_correspondiente", mesActualStr);
-
-        if (pgError) throw new Error(`Pagos: ${pgError.message}`);
-        setPagosMesActual(pagosData || []);
-
-        // Load Gastos for current month
-        try {
-          const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-          const { data: gastosData, error: gsError } = await supabase
-            .from("gastos")
-            .select("*")
-            .gte("fecha_gasto", startOfMonth);
-
-          if (!gsError) {
-            setGastosMesActual(gastosData || []);
-          }
-        } catch (gErr) {
-          console.warn("Fallo no crítico en carga de gastos");
-        }
-      } catch (err: any) {
-        console.error("Error Dashboard:", err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadData();
   }, [mesActualStr]);
 
-  const refreshAlumnos = async () => {
-    const { data } = await supabase.from("perfiles_alumnos").select("*").order("nombre_completo");
-    if (data) setAlumnos(data);
+  async function loadData() {
+    setLoading(true);
+    try {
+      // 1. Ejecutar Sincronización de Automatización (Gastos Fijos + Sueldos)
+      // Pasamos los alumnos cargados previamente si es posible, o los cargamos dentro
+      const { data: alumnosRaw } = await supabase.from("perfiles_alumnos").select("*");
+      await checkAndApplyAutomation(alumnosRaw || []);
 
-    const { data: pagosData } = await supabase
-      .from("registro_pagos")
-      .select("*")
-      .eq("mes_correspondiente", mesActualStr);
-    if (pagosData) setPagosMesActual(pagosData || []);
+      // 2. Cargar Disciplinas para filtros
+      const { data: dData } = await supabase.from("disciplinas").select("*").order("nombre");
+      if (dData) setDisciplinas(dData);
+
+      // 3. Cargar Alumnos (con orden para la tabla)
+      const { data: alumnosData, error: alError } = await supabase
+        .from("perfiles_alumnos")
+        .select("*")
+        .order("nombre_completo");
+
+      if (alError) throw new Error(`Alumnos: ${alError.message}`);
+      setAlumnos(alumnosData || []);
+
+      // 4. Cargar Pagos del mes
+      const { data: pagosData, error: pgError } = await supabase
+        .from("registro_pagos")
+        .select("*")
+        .eq("mes_correspondiente", mesActualStr);
+
+      if (pgError) throw new Error(`Pagos: ${pgError.message}`);
+      setPagosMesActual(pagosData || []);
+
+      // 5. Cargar Gastos del mes (Reales y Fijos ya insertados)
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      const { data: gastosData, error: gsError } = await supabase
+        .from("gastos")
+        .select("*")
+        .gte("fecha_gasto", startOfMonth);
+
+      if (!gsError) {
+        setGastosMesActual(gastosData || []);
+      }
+    } catch (err: any) {
+      console.error("Error Dashboard:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function checkAndApplyAutomation(alumnos: Alumno[]) {
+    setIsSyncing(true);
+    try {
+      const { data: registro } = await supabase
+        .from("registro_automatizacion")
+        .select("*")
+        .eq("mes_año", mesActualStr)
+        .single();
+
+      if (!registro) {
+        console.log("Detectado nuevo mes. Generando gastos fijos y sueldos...");
+
+        // --- PARTE A: Gastos Fijos ---
+        const { data: fijos } = await supabase
+          .from("gastos_fijos")
+          .select("*")
+          .eq("activo", true);
+
+        const insertsGastos = [];
+
+        if (fijos && fijos.length > 0) {
+          insertsGastos.push(...fijos.map(f => ({
+            descripcion: f.descripcion,
+            monto: f.monto,
+            categoria: f.categoria,
+            fecha_gasto: new Date().toISOString().split('T')[0],
+            origen_fijo_id: f.id
+          })));
+        }
+
+        // --- PARTE B: Sueldos Entrenadores (Comisiones) ---
+        const comisiones = await calculateCommissions(alumnos);
+        if (comisiones.length > 0) {
+          insertsGastos.push(...comisiones.map(c => ({
+            descripcion: `Pago Sueldo: ${c.coach}`,
+            monto: c.monto,
+            categoria: 'Sueldos',
+            fecha_gasto: new Date().toISOString().split('T')[0],
+            origen_fijo_id: null
+          })));
+        }
+
+        // Insertar todos de golpe si hay algo
+        if (insertsGastos.length > 0) {
+          await supabase.from("gastos").insert(insertsGastos);
+        }
+
+        // Marcar mes como procesado
+        await supabase.from("registro_automatizacion").insert([{ mes_año: mesActualStr }]);
+      }
+    } catch (e) {
+      console.error("Error in automation engine:", e);
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  async function calculateCommissions(alumnos: Alumno[]) {
+    const { data: coaches } = await supabase.from("entrenadores").select("*");
+    if (!coaches) return [];
+
+    return coaches.map(coach => {
+      const myAlumnos = alumnos.filter(a => a.entrenador_id === coach.id);
+      const porcentaje = coach.porcentaje_comision || 0;
+      const totalVal = myAlumnos.reduce((acc, curr) => acc + (Number(curr.precio_mensual) * (porcentaje / 100)), 0);
+      return { coach: coach.nombre, monto: totalVal };
+    }).filter(c => c.monto > 0); // Solo insertar si hay algo que cobrar
+  }
+
+  const refreshAlumnos = async () => {
+    loadData();
   };
 
   const handleDeleteAlumno = async (id: string) => {
     if (!confirm("¿Estás seguro de eliminar a este alumno?")) return;
-
     try {
       const { error } = await supabase.from("perfiles_alumnos").delete().eq("id", id);
       if (error) throw error;
@@ -118,25 +188,18 @@ export default function Home() {
 
   const handleRegistrarPago = async (alumno: Alumno) => {
     setProcessingPago(alumno.id);
-
     try {
       const { data, error } = await supabase
         .from("registro_pagos")
-        .insert([
-          {
-            alumno_id: alumno.id,
-            monto: alumno.precio_mensual,
-            mes_correspondiente: mesActualStr,
-          },
-        ])
+        .insert([{
+          alumno_id: alumno.id,
+          monto: alumno.precio_mensual,
+          mes_correspondiente: mesActualStr,
+        }])
         .select()
         .single();
-
       if (error) throw error;
-
-      if (data) {
-        setPagosMesActual((prev) => [...prev, data]);
-      }
+      if (data) setPagosMesActual((prev) => [...prev, data]);
     } catch (err: any) {
       alert("Error al registrar pago: " + err.message);
     } finally {
@@ -153,7 +216,6 @@ export default function Home() {
       const nameMatch = alumno.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase());
       const discMatch = filterDisciplina === "Todos" || alumno.disciplina === filterDisciplina;
       const trainMatch = filterEntrenador === "Todos" || alumno.entrenador_asignado === filterEntrenador;
-
       return nameMatch && discMatch && trainMatch;
     })
     .sort((a, b) => {
@@ -166,11 +228,18 @@ export default function Home() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Dashboard General</h1>
-          <p className="text-zinc-500 mt-1">
-            Gestiona tus alumnos y los pagos de <span className="text-rose-500 font-semibold uppercase">{mesActualStr}</span>.
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-white">Dashboard General</h1>
+            <p className="text-zinc-500 mt-1">
+              Gestiona tus alumnos y los pagos de <span className="text-rose-500 font-semibold uppercase">{mesActualStr}</span>.
+            </p>
+          </div>
+          {isSyncing && (
+            <Badge className="bg-emerald-600/10 text-emerald-500 border-emerald-500/20 gap-2 px-3 py-1.5 animate-pulse">
+              <Sparkles size={12} /> Sincronizando Finanzas...
+            </Badge>
+          )}
         </div>
         <NuevoAlumnoModal onAlumnoCreated={refreshAlumnos} />
       </div>
@@ -186,9 +255,11 @@ export default function Home() {
           <Tabs value={filterDisciplina} onValueChange={setFilterDisciplina} className="w-full sm:w-auto">
             <TabsList className="bg-black border border-zinc-900 h-11 p-1">
               <TabsTrigger value="Todos" className="rounded-md data-[state=active]:bg-rose-600 data-[state=active]:text-white">Todos</TabsTrigger>
-              <TabsTrigger value="Boxeo" className="rounded-md data-[state=active]:bg-rose-600 data-[state=active]:text-white">Boxeo</TabsTrigger>
-              <TabsTrigger value="Sanda" className="rounded-md data-[state=active]:bg-rose-600 data-[state=active]:text-white">Sanda</TabsTrigger>
-              <TabsTrigger value="BJJ" className="rounded-md data-[state=active]:bg-rose-600 data-[state=active]:text-white">BJJ</TabsTrigger>
+              {disciplinas.map(d => (
+                <TabsTrigger key={d.id} value={d.nombre} className="rounded-md data-[state=active]:bg-rose-600 data-[state=active]:text-white uppercase text-[10px] tracking-widest font-bold">
+                  {d.nombre}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </Tabs>
 
@@ -198,9 +269,8 @@ export default function Home() {
             className="h-11 w-full sm:w-48 bg-black border border-zinc-900 rounded-lg px-3 text-sm text-zinc-400 focus:outline-none focus:border-rose-600 appearance-none transition-colors"
           >
             <option value="Todos">Todos los entrenadores</option>
-            {/* Cargando dinámicamente desde los alumnos actuales para simplicidad inmediata */}
             {Array.from(new Set(alumnos.map(a => a.entrenador_asignado))).sort().map(e => (
-              <option key={e} value={e}>{e}</option>
+              e && <option key={e} value={e}>{e}</option>
             ))}
           </select>
         </div>
@@ -234,7 +304,7 @@ export default function Home() {
                 <TableCell colSpan={6} className="text-center py-20">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="h-8 w-8 animate-spin text-rose-600" />
-                    <span className="text-zinc-500 text-sm">Cargando alumnos...</span>
+                    <span className="text-zinc-500 text-sm">Cargando datos...</span>
                   </div>
                 </TableCell>
               </TableRow>

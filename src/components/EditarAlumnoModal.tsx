@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,8 +25,6 @@ import { supabase } from "@/lib/supabase";
 import { Database } from "@/types/database.types";
 
 type Alumno = Database["public"]["Tables"]["perfiles_alumnos"]["Row"];
-type Disciplina = Database["public"]["Enums"]["disciplina_enum"];
-type Entrenador = Database["public"]["Enums"]["entrenador_enum"];
 
 interface EditarAlumnoModalProps {
     alumno: Alumno;
@@ -36,26 +34,38 @@ interface EditarAlumnoModalProps {
 export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModalProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [disciplinas, setDisciplinas] = useState<{ id: string, nombre: string }[]>([]);
+    const [entrenadores, setEntrenadores] = useState<{ id: string, nombre: string }[]>([]);
+
     const [formData, setFormData] = useState({
         nombre_completo: alumno.nombre_completo,
         telefono: alumno.telefono || "",
-        disciplina: alumno.disciplina as Disciplina,
-        entrenador_asignado: alumno.entrenador_asignado as Entrenador,
+        disciplina: alumno.disciplina || "",
+        entrenador_id: alumno.entrenador_id || "",
+        entrenador_nombre: alumno.entrenador_asignado || "",
         precio_mensual: alumno.precio_mensual?.toString() || "",
     });
 
-    // Reset form when modal opens with a new alumno
     useEffect(() => {
         if (open) {
+            loadOptions();
             setFormData({
                 nombre_completo: alumno.nombre_completo,
                 telefono: alumno.telefono || "",
-                disciplina: alumno.disciplina as Disciplina,
-                entrenador_asignado: alumno.entrenador_asignado as Entrenador,
+                disciplina: alumno.disciplina || "",
+                entrenador_id: alumno.entrenador_id || "",
+                entrenador_nombre: alumno.entrenador_asignado || "",
                 precio_mensual: alumno.precio_mensual?.toString() || "",
             });
         }
     }, [open, alumno]);
+
+    async function loadOptions() {
+        const { data: dData } = await supabase.from("disciplinas").select("*").order("nombre");
+        const { data: eData } = await supabase.from("entrenadores").select("id, nombre").order("nombre");
+        if (dData) setDisciplinas(dData);
+        if (eData) setEntrenadores(eData);
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -68,7 +78,8 @@ export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModal
                     nombre_completo: formData.nombre_completo,
                     telefono: formData.telefono || null,
                     disciplina: formData.disciplina,
-                    entrenador_asignado: formData.entrenador_asignado,
+                    entrenador_asignado: formData.entrenador_nombre,
+                    entrenador_id: formData.entrenador_id,
                     precio_mensual: parseFloat(formData.precio_mensual),
                 })
                 .eq("id", alumno.id);
@@ -76,13 +87,9 @@ export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModal
             if (error) throw error;
 
             setOpen(false);
-            onAlumnoUpdated(); // Refresh table
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                alert("Error actualizando alumno: " + err.message);
-            } else {
-                alert("Error actualizando alumno");
-            }
+            onAlumnoUpdated();
+        } catch (err: any) {
+            alert("Error actualizando alumno: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -127,33 +134,38 @@ export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModal
                             <Label htmlFor="edit-disciplina" className="text-foreground">Disciplina</Label>
                             <Select
                                 value={formData.disciplina}
-                                onValueChange={(value: Disciplina) => setFormData({ ...formData, disciplina: value })}
+                                onValueChange={(value) => setFormData({ ...formData, disciplina: value })}
                             >
                                 <SelectTrigger id="edit-disciplina" className="bg-background border-border">
                                     <SelectValue placeholder="Seleccionar" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
-                                    <SelectItem value="Boxeo">Boxeo</SelectItem>
-                                    <SelectItem value="Sanda">Sanda</SelectItem>
-                                    <SelectItem value="BJJ">BJJ</SelectItem>
+                                    {disciplinas.map(d => (
+                                        <SelectItem key={d.id} value={d.nombre}>{d.nombre}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="edit-entrenador" className="text-foreground">Entrenador</Label>
                             <Select
-                                value={formData.entrenador_asignado}
-                                onValueChange={(value: Entrenador) => setFormData({ ...formData, entrenador_asignado: value })}
+                                value={formData.entrenador_id}
+                                onValueChange={(value) => {
+                                    const coach = entrenadores.find(c => c.id === value);
+                                    setFormData({
+                                        ...formData,
+                                        entrenador_id: value,
+                                        entrenador_nombre: coach?.nombre || ""
+                                    });
+                                }}
                             >
                                 <SelectTrigger id="edit-entrenador" className="bg-background border-border">
                                     <SelectValue placeholder="Seleccionar" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
-                                    <SelectItem value="Chamon">Chamon</SelectItem>
-                                    <SelectItem value="Lupu">Lupu</SelectItem>
-                                    <SelectItem value="Isaac">Isaac</SelectItem>
-                                    <SelectItem value="Angel">Angel</SelectItem>
-                                    <SelectItem value="Carlos">Carlos</SelectItem>
+                                    {entrenadores.map(e => (
+                                        <SelectItem key={e.id} value={e.id}>{e.nombre}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -173,7 +185,7 @@ export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModal
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-white">
-                            {loading ? "Actualizando..." : "Guardar Cambios"}
+                            {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Guardar Cambios"}
                         </Button>
                     </DialogFooter>
                 </form>

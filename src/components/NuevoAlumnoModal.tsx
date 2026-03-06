@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { PlusCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,21 +22,43 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
-import { Database } from "@/types/database.types";
-
-type Disciplina = Database["public"]["Enums"]["disciplina_enum"];
-type Entrenador = Database["public"]["Enums"]["entrenador_enum"];
 
 export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => void }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [disciplinas, setDisciplinas] = useState<{ id: string, nombre: string }[]>([]);
+    const [entrenadores, setEntrenadores] = useState<{ id: string, nombre: string }[]>([]);
+
     const [formData, setFormData] = useState({
         nombre_completo: "",
         telefono: "",
-        disciplina: "Boxeo" as Disciplina,
-        entrenador_asignado: "Isaac" as Entrenador,
+        disciplina: "",
+        entrenador_id: "",
+        entrenador_nombre: "",
         precio_mensual: "",
     });
+
+    useEffect(() => {
+        if (open) {
+            loadOptions();
+        }
+    }, [open]);
+
+    async function loadOptions() {
+        const { data: dData } = await supabase.from("disciplinas").select("*").order("nombre");
+        const { data: eData } = await supabase.from("entrenadores").select("id, nombre").order("nombre");
+
+        if (dData) setDisciplinas(dData);
+        if (eData) setEntrenadores(eData);
+
+        // Pre-select first options if available
+        setFormData(prev => ({
+            ...prev,
+            disciplina: dData?.[0]?.nombre || "",
+            entrenador_id: eData?.[0]?.id || "",
+            entrenador_nombre: eData?.[0]?.nombre || "",
+        }));
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -48,7 +70,8 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                     nombre_completo: formData.nombre_completo,
                     telefono: formData.telefono || null,
                     disciplina: formData.disciplina,
-                    entrenador_asignado: formData.entrenador_asignado,
+                    entrenador_asignado: formData.entrenador_nombre,
+                    entrenador_id: formData.entrenador_id,
                     precio_mensual: parseFloat(formData.precio_mensual),
                 },
             ]);
@@ -59,17 +82,14 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
             setFormData({
                 nombre_completo: "",
                 telefono: "",
-                disciplina: "Boxeo",
-                entrenador_asignado: "Isaac",
+                disciplina: "",
+                entrenador_id: "",
+                entrenador_nombre: "",
                 precio_mensual: ""
             });
-            onAlumnoCreated(); // Refresh table
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                alert("Error creando alumno: " + err.message);
-            } else {
-                alert("Error creando alumno");
-            }
+            onAlumnoCreated();
+        } catch (err: any) {
+            alert("Error creando alumno: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -116,33 +136,37 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                             <Label htmlFor="disciplina" className="text-foreground">Disciplina</Label>
                             <Select
                                 value={formData.disciplina}
-                                onValueChange={(value: Disciplina) => setFormData({ ...formData, disciplina: value })}
+                                onValueChange={(value) => setFormData({ ...formData, disciplina: value })}
                             >
                                 <SelectTrigger id="disciplina" className="bg-background border-border">
                                     <SelectValue placeholder="Seleccionar" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
-                                    <SelectItem value="Boxeo">Boxeo</SelectItem>
-                                    <SelectItem value="Sanda">Sanda</SelectItem>
-                                    <SelectItem value="BJJ">BJJ</SelectItem>
+                                    {disciplinas.map(d => (
+                                        <SelectItem key={d.id} value={d.nombre}>{d.nombre}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="entrenador" className="text-foreground">Entrenador</Label>
                             <Select
-                                value={formData.entrenador_asignado}
-                                onValueChange={(value: any) => setFormData({ ...formData, entrenador_asignado: value })}
+                                value={formData.entrenador_id}
+                                onValueChange={(value) => {
+                                    const coach = entrenadores.find(c => c.id === value);
+                                    setFormData({
+                                        ...formData,
+                                        entrenador_id: value,
+                                        entrenador_nombre: coach?.nombre || ""
+                                    });
+                                }}
                             >
                                 <SelectTrigger id="entrenador" className="bg-background border-border">
                                     <SelectValue placeholder="Seleccionar" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-popover border-border">
-                                    {/* Cargamos los entrenadores dinámicamente si los tuviéramos, 
-                                        por ahora mantenemos los nombres pero permitimos que 
-                                        la UI sea agnóstica al enum si es necesario */}
-                                    {["Chamon", "Lupu", "Isaac", "Angel", "Carlos"].map(e => (
-                                        <SelectItem key={e} value={e}>{e}</SelectItem>
+                                    {entrenadores.map(e => (
+                                        <SelectItem key={e.id} value={e.id}>{e.nombre}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -164,7 +188,7 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-white">
-                            {loading ? "Guardando..." : "Guardar Alumno"}
+                            {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Guardar Alumno"}
                         </Button>
                     </DialogFooter>
                 </form>
