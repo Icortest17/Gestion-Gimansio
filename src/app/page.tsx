@@ -52,14 +52,13 @@ export default function Home() {
     async function loadData() {
       setLoading(true);
       try {
-        console.log("Cargando datos para:", mesActualStr);
         // Load Alumnos
         const { data: alumnosData, error: alError } = await supabase
           .from("perfiles_alumnos")
           .select("*")
           .order("nombre_completo");
 
-        if (alError) throw alError;
+        if (alError) throw new Error(`Alumnos: ${alError.message}`);
         setAlumnos(alumnosData || []);
 
         // Load Pagos for current month
@@ -68,21 +67,25 @@ export default function Home() {
           .select("*")
           .eq("mes_correspondiente", mesActualStr);
 
-        if (pgError) throw pgError;
+        if (pgError) throw new Error(`Pagos: ${pgError.message}`);
         setPagosMesActual(pagosData || []);
 
         // Load Gastos for current month
-        // Nota: Filtrado simple por fecha (mes actual)
-        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-        const { data: gastosData, error: gsError } = await supabase
-          .from("gastos")
-          .select("*")
-          .gte("fecha_gasto", startOfMonth);
+        try {
+          const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+          const { data: gastosData, error: gsError } = await supabase
+            .from("gastos")
+            .select("*")
+            .gte("fecha_gasto", startOfMonth);
 
-        if (gsError) throw gsError;
-        setGastosMesActual(gastosData || []);
-      } catch (err) {
-        console.error("Error cargando Dashboard:", err);
+          if (!gsError) {
+            setGastosMesActual(gastosData || []);
+          }
+        } catch (gErr) {
+          console.warn("Fallo no crítico en carga de gastos");
+        }
+      } catch (err: any) {
+        console.error("Error Dashboard:", err.message);
       } finally {
         setLoading(false);
       }
