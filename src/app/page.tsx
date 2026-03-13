@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/types/database.types";
-import { getMesActual } from "@/lib/utils-pagos";
+import { getMesActual, getStartAndEndOfMonth, generateListMonths } from "@/lib/utils-pagos";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KpiStats } from "@/components/KpiStats";
 import {
@@ -39,26 +39,6 @@ type Alumno = Database["public"]["Tables"]["perfiles_alumnos"]["Row"];
 type Pago = Database["public"]["Tables"]["registro_pagos"]["Row"];
 type Gasto = Database["public"]["Tables"]["gastos"]["Row"];
 
-function getStartAndEndOfMonth(mesStr: string) {
-  const meses = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-  ];
-  const [mes, anio] = mesStr.split(' ');
-  const mesIndex = meses.indexOf(mes);
-  if (mesIndex === -1) return { start: '', end: '' };
-
-  // Parsear a fecha local evitando problemas de zona horaria al aislar el formato
-  const year = parseInt(anio);
-
-  // Formato YYYY-MM-DD
-  const start = `${year}-${String(mesIndex + 1).padStart(2, '0')}-01`;
-  const lastDay = new Date(year, mesIndex + 1, 0).getDate();
-  const end = `${year}-${String(mesIndex + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-
-  return { start, end };
-}
-
 export default function Home() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [pagosMesActual, setPagosMesActual] = useState<Pago[]>([]);
@@ -72,20 +52,6 @@ export default function Home() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [mesActualStr, setMesActualStr] = useState<string>(getMesActual());
 
-  const generateListMonths = () => {
-    const result = [];
-    const date = new Date();
-    date.setMonth(date.getMonth() - 6); // Hasta 6 meses atrás
-    const mesesInfo = [
-      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-    ];
-    for (let i = 0; i < 12; i++) {
-      result.push(`${mesesInfo[date.getMonth()]} ${date.getFullYear()}`);
-      date.setMonth(date.getMonth() + 1);
-    }
-    return result;
-  };
   const mesesDisponibles = generateListMonths();
 
   useEffect(() => {

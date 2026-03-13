@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/types/database.types";
+import { getMesActual, getStartAndEndOfMonth, generateListMonths } from "@/lib/utils-pagos";
 
 type Gasto = Database["public"]["Tables"]["gastos"]["Row"];
 type GastoFijo = Database["public"]["Tables"]["gastos_fijos"]["Row"];
@@ -50,15 +51,22 @@ export default function GastosPage() {
     const [catFijo, setCatFijo] = useState("Fijo");
     const [aplicarAhora, setAplicarAhora] = useState("no");
 
+    const [mesActualStr, setMesActualStr] = useState<string>(getMesActual());
+    const mesesDisponibles = generateListMonths();
+
     useEffect(() => {
         loadData();
-    }, []);
+    }, [mesActualStr]);
 
     async function loadData() {
         setLoading(true);
+        const { start: startOfMonthStr, end: endOfMonthStr } = getStartAndEndOfMonth(mesActualStr);
+
         const { data: gData } = await supabase
             .from("gastos")
             .select("*")
+            .gte("fecha_gasto", startOfMonthStr)
+            .lte("fecha_gasto", endOfMonthStr)
             .order("fecha_gasto", { ascending: false });
 
         const { data: fData } = await supabase
@@ -147,19 +155,27 @@ export default function GastosPage() {
         if (!error) loadData();
     }
 
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-    const gastosMesActual = gastos.filter(g => g.fecha_gasto && g.fecha_gasto >= startOfMonth);
-    const totalGastosMes = gastosMesActual.reduce((acc, curr) => acc + curr.monto, 0);
-
-    const mesNombre = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    const totalGastosMes = gastos.reduce((acc, curr) => acc + curr.monto, 0);
 
     return (
         <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
             {/* Header Profesional */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1">
-                    <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">
-                        Finanzas <span className="text-rose-600">Pro</span>
+                <div className="space-y-1 flex-1">
+                    <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase flex flex-col md:flex-row md:items-center gap-4">
+                        <span>Finanzas <span className="text-rose-600">Pro</span></span>
+                        <Select value={mesActualStr} onValueChange={setMesActualStr}>
+                            <SelectTrigger className="w-[200px] h-10 bg-zinc-900/50 border-zinc-800 text-rose-500 font-bold italic rounded-xl focus:ring-rose-500 transition-colors text-base normal-case tracking-normal">
+                                <SelectValue placeholder="Mes" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-950 border-zinc-900 text-white">
+                                {mesesDisponibles.map(mes => (
+                                    <SelectItem key={mes} value={mes} className="focus:bg-zinc-900 focus:text-white cursor-pointer py-2 font-sans not-italic">
+                                        {mes} {mes === getMesActual() && "(Mes Actual)"}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </h1>
                     <p className="text-zinc-500 text-sm font-medium">Control integral de salidas, gastos fijos y automatización.</p>
                 </div>
@@ -168,7 +184,7 @@ export default function GastosPage() {
                     <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
                         <TrendingDown size={50} className="text-rose-600" />
                     </div>
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1 italic">Gastos de {mesNombre}</p>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1 italic">Gastos de {mesActualStr}</p>
                     <div className="text-4xl font-black text-white italic">{totalGastosMes.toLocaleString()}€</div>
                 </Card>
             </div>
