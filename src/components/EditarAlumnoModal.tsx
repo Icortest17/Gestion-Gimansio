@@ -44,6 +44,8 @@ export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModal
         entrenador_id: alumno.entrenador_id || "",
         entrenador_nombre: alumno.entrenador_asignado || "",
         precio_mensual: alumno.precio_mensual?.toString() || "",
+        es_recurrente: (alumno as any).es_recurrente ?? true,
+        activo: (alumno as any).activo ?? true,
     });
 
     useEffect(() => {
@@ -56,6 +58,8 @@ export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModal
                 entrenador_id: alumno.entrenador_id || "",
                 entrenador_nombre: alumno.entrenador_asignado || "",
                 precio_mensual: alumno.precio_mensual?.toString() || "",
+                es_recurrente: (alumno as any).es_recurrente ?? true,
+                activo: (alumno as any).activo ?? true,
             });
         }
     }, [open, alumno]);
@@ -81,6 +85,8 @@ export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModal
                     entrenador_asignado: formData.entrenador_nombre,
                     entrenador_id: formData.entrenador_id,
                     precio_mensual: parseFloat(formData.precio_mensual),
+                    es_recurrente: formData.es_recurrente,
+                    activo: formData.activo
                 })
                 .eq("id", alumno.id);
 
@@ -182,6 +188,33 @@ export function EditarAlumnoModal({ alumno, onAlumnoUpdated }: EditarAlumnoModal
                             value={formData.precio_mensual}
                             onChange={(e) => setFormData({ ...formData, precio_mensual: e.target.value })}
                         />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 py-2">
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                id="edit-recurrente"
+                                checked={formData.es_recurrente}
+                                onChange={(e) => setFormData({ ...formData, es_recurrente: e.target.checked })}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="edit-recurrente" className="text-xs font-medium cursor-pointer text-white">
+                                Alumno Recurrente
+                            </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                id="edit-activo"
+                                checked={formData.activo}
+                                onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="edit-activo" className="text-xs font-medium cursor-pointer text-white">
+                                Estado Activo
+                            </Label>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-white">

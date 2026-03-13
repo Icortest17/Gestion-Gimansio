@@ -38,7 +38,8 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
         entrenador_nombre: "",
         precio_mensual: "",
         fecha_ingreso: new Date().toISOString().split('T')[0],
-        registrarPago: true
+        registrarPago: true,
+        es_recurrente: true
     });
 
     useEffect(() => {
@@ -77,7 +78,8 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                     entrenador_asignado: formData.entrenador_nombre,
                     entrenador_id: formData.entrenador_id,
                     precio_mensual: parseFloat(formData.precio_mensual),
-                    fecha_ingreso: formData.fecha_ingreso
+                    fecha_ingreso: formData.fecha_ingreso,
+                    es_recurrente: formData.es_recurrente
                 },
             ]).select().single();
 
@@ -106,7 +108,8 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                 entrenador_nombre: "",
                 precio_mensual: "",
                 fecha_ingreso: new Date().toISOString().split('T')[0],
-                registrarPago: true
+                registrarPago: true,
+                es_recurrente: true
             });
             onAlumnoCreated();
         } catch (err: any) {
@@ -231,6 +234,19 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                         />
                         <Label htmlFor="registrarPago" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
                             Registrar cobro del primer mes automáticamente
+                        </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2 py-2">
+                        <input
+                            type="checkbox"
+                            id="es_recurrente"
+                            checked={formData.es_recurrente}
+                            onChange={(e) => setFormData({ ...formData, es_recurrente: e.target.checked })}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <Label htmlFor="es_recurrente" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                            Alumno Recurrente (Aparecerá el próximo mes)
                         </Label>
                     </div>
                     <DialogFooter>

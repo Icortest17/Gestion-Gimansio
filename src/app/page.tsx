@@ -83,7 +83,21 @@ export default function Home() {
       // Filtrar para no mostrar alumnos que se dieron de alta en un mes posterior al seleccionado
       const alumnosFiltrados = (alumnosData || []).filter(a => {
         if (!a.fecha_ingreso) return true;
-        return a.fecha_ingreso <= endOfMonth;
+
+        // 1. Ocultar si la fecha de ingreso es posterior al final del mes seleccionado
+        if (a.fecha_ingreso > endOfMonth) return false;
+
+        const esRecurrente = (a as any).es_recurrente !== false; // Default true
+        const estaActivo = (a as any).activo !== false; // Default true
+
+        // 2. Si no es activo, no lo mostramos (baja del sistema)
+        if (!estaActivo) return false;
+
+        // 3. Si es recurrente, se muestra siempre desde su fecha de ingreso
+        if (esRecurrente) return true;
+
+        // 4. Si NO es recurrente, solo se muestra si su fecha de ingreso cae en el mes seleccionado
+        return a.fecha_ingreso >= startOfMonth && a.fecha_ingreso <= endOfMonth;
       });
       setAlumnos(alumnosFiltrados);
 
