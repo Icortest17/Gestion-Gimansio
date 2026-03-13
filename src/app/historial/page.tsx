@@ -116,18 +116,18 @@ export default function HistorialPage() {
         const headers = ["Tipo", "Concepto", "Mes/Fecha", "Monto"];
         const rowsPagos = filteredPagos.map((pago: any) => [
             "INGRESO",
-            pago.perfiles_alumnos?.nombre_completo || "S/N",
-            pago.mes_correspondiente,
-            `${pago.monto}€`
+            `"${pago.perfiles_alumnos?.nombre_completo || "S/N"}"`,
+            `"${pago.mes_correspondiente}"`,
+            `"${pago.monto}€"`
         ]);
         const rowsGastos = filteredGastos.map((gasto: any) => [
             "GASTO",
-            gasto.descripcion,
-            gasto.fecha_gasto,
-            `-${gasto.monto}€`
+            `"${gasto.descripcion}"`,
+            `"${gasto.fecha_gasto}"`,
+            `"-${gasto.monto}€"`
         ]);
 
-        const csvContent = [headers, ...rowsPagos, ...rowsGastos].map(e => e.join(",")).join("\n");
+        const csvContent = "\uFEFF" + [headers, ...rowsPagos, ...rowsGastos].map(e => e.join(";")).join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
