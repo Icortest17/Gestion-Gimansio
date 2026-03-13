@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { TrendingDown, Plus, Trash, Loader2, DollarSign, Calendar, Search, FileText, Settings2, CheckCircle2, AlertCircle, RefreshCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

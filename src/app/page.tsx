@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Search, CreditCard, Loader2, MoreVertical, Trash, Pencil, Sparkles } from "lucide-react";

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { Search, Phone, Calendar, User, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
