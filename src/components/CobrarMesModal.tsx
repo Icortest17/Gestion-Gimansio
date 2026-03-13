@@ -13,7 +13,7 @@ type Alumno = Database["public"]["Tables"]["perfiles_alumnos"]["Row"];
 interface CobrarMesModalProps {
     alumno: Alumno;
     mesActualPorDefecto: string;
-    onPagoCompletado: () => void;
+    onPagoCompletado: (pago?: any) => void;
     pagadoMesActual: boolean;
 }
 
@@ -102,7 +102,7 @@ export function CobrarMesModal({ alumno, mesActualPorDefecto, onPagoCompletado, 
                         </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="flex flex-col gap-4">
                         <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Mes que se está abonando</label>
                         <Select value={mesSeleccionado} onValueChange={setMesSeleccionado}>
                             <SelectTrigger className="bg-black border-zinc-800 text-white rounded-xl focus:ring-emerald-500 transition-colors h-14">

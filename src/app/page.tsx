@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/types/database.types";
 import { getMesActual } from "@/lib/utils-pagos";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KpiStats } from "@/components/KpiStats";
 import {
   Table,
@@ -38,6 +39,26 @@ type Alumno = Database["public"]["Tables"]["perfiles_alumnos"]["Row"];
 type Pago = Database["public"]["Tables"]["registro_pagos"]["Row"];
 type Gasto = Database["public"]["Tables"]["gastos"]["Row"];
 
+function getStartAndEndOfMonth(mesStr: string) {
+  const meses = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
+  const [mes, anio] = mesStr.split(' ');
+  const mesIndex = meses.indexOf(mes);
+  if (mesIndex === -1) return { start: '', end: '' };
+
+  // Parsear a fecha local evitando problemas de zona horaria al aislar el formato
+  const year = parseInt(anio);
+
+  // Formato YYYY-MM-DD
+  const start = `${year}-${String(mesIndex + 1).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, mesIndex + 1, 0).getDate();
+  const end = `${year}-${String(mesIndex + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+  return { start, end };
+}
+
 export default function Home() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [pagosMesActual, setPagosMesActual] = useState<Pago[]>([]);
@@ -49,8 +70,23 @@ export default function Home() {
   const [filterDisciplina, setFilterDisciplina] = useState("Todos");
   const [filterEntrenador, setFilterEntrenador] = useState("Todos");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [mesActualStr, setMesActualStr] = useState<string>(getMesActual());
 
-  const mesActualStr = getMesActual();
+  const generateListMonths = () => {
+    const result = [];
+    const date = new Date();
+    date.setMonth(date.getMonth() - 6); // Hasta 6 meses atrás
+    const mesesInfo = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    for (let i = 0; i < 12; i++) {
+      result.push(`${mesesInfo[date.getMonth()]} ${date.getFullYear()}`);
+      date.setMonth(date.getMonth() + 1);
+    }
+    return result;
+  };
+  const mesesDisponibles = generateListMonths();
 
   useEffect(() => {
     loadData();
@@ -87,11 +123,12 @@ export default function Home() {
       setPagosMesActual(pagosData || []);
 
       // 5. Cargar Gastos del mes (Reales y Fijos ya insertados)
-      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      const { start: startOfMonth, end: endOfMonth } = getStartAndEndOfMonth(mesActualStr);
       const { data: gastosData, error: gsError } = await supabase
         .from("gastos")
         .select("*")
-        .gte("fecha_gasto", startOfMonth);
+        .gte("fecha_gasto", startOfMonth)
+        .lte("fecha_gasto", endOfMonth);
 
       if (!gsError) {
         setGastosMesActual(gastosData || []);
@@ -155,11 +192,12 @@ export default function Home() {
         await supabase.from("registro_automatizacion").insert([{ mes_año: mesActualStr }]);
       } else {
         // Mes ya procesado: sincronización dinámica de comisiones
-        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+        const { start: startOfMonth, end: endOfMonth } = getStartAndEndOfMonth(mesActualStr);
         const { data: sueldosExistentes } = await supabase
           .from("gastos")
           .select("id, descripcion, monto")
           .gte("fecha_gasto", startOfMonth)
+          .lte("fecha_gasto", endOfMonth)
           .eq("categoria", "Sueldos")
           .like("descripcion", "Pago Sueldo:%");
 
@@ -254,9 +292,23 @@ export default function Home() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Dashboard General</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+              Dashboard
+              <Select value={mesActualStr} onValueChange={setMesActualStr}>
+                <SelectTrigger className="w-[200px] h-10 bg-zinc-900/50 border-zinc-800 text-rose-500 font-bold italic rounded-xl focus:ring-rose-500 transition-colors">
+                  <SelectValue placeholder="Mes" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-950 border-zinc-900 text-white">
+                  {mesesDisponibles.map(mes => (
+                    <SelectItem key={mes} value={mes} className="focus:bg-zinc-900 focus:text-white cursor-pointer py-2">
+                      {mes} {mes === getMesActual() && "(Mes Actual)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </h1>
             <p className="text-zinc-500 mt-1">
-              Gestiona tus alumnos y los pagos de <span className="text-rose-500 font-semibold uppercase">{mesActualStr}</span>.
+              Gestiona tus alumnos y cuentas visualizando el período seleccionado.
             </p>
           </div>
           {isSyncing && (
@@ -373,7 +425,12 @@ export default function Home() {
                         <CobrarMesModal
                           alumno={alumno}
                           mesActualPorDefecto={mesActualStr}
-                          onPagoCompletado={loadData}
+                          onPagoCompletado={(nuevoPago) => {
+                            if (nuevoPago && nuevoPago.mes_correspondiente === mesActualStr) {
+                              setPagosMesActual(prev => [...prev, nuevoPago]); // Actualización optimista de UI
+                            }
+                            loadData(); // Refresco silencioso en background
+                          }}
                           pagadoMesActual={pagado}
                         />
 
