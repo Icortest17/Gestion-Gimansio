@@ -22,6 +22,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
+import { formatDateToMes } from "@/lib/utils-pagos";
 
 export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => void }) {
     const [open, setOpen] = useState(false);
@@ -36,6 +37,8 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
         entrenador_id: "",
         entrenador_nombre: "",
         precio_mensual: "",
+        fecha_ingreso: new Date().toISOString().split('T')[0],
+        registrarPago: true
     });
 
     useEffect(() => {
@@ -65,7 +68,8 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
         setLoading(true);
 
         try {
-            const { error } = await supabase.from("perfiles_alumnos").insert([
+            // 1. Insertar Alumno
+            const { data: alumno, error: alumnoError } = await supabase.from("perfiles_alumnos").insert([
                 {
                     nombre_completo: formData.nombre_completo,
                     telefono: formData.telefono || null,
@@ -73,10 +77,25 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                     entrenador_asignado: formData.entrenador_nombre,
                     entrenador_id: formData.entrenador_id,
                     precio_mensual: parseFloat(formData.precio_mensual),
+                    fecha_ingreso: formData.fecha_ingreso
                 },
-            ]);
+            ]).select().single();
 
-            if (error) throw error;
+            if (alumnoError) throw alumnoError;
+
+            // 2. Registrar Pago Automático si está marcado
+            if (formData.registrarPago && alumno) {
+                const mesPago = formatDateToMes(formData.fecha_ingreso);
+                const { error: pagoError } = await supabase.from("registro_pagos").insert([
+                    {
+                        alumno_id: alumno.id,
+                        mes_correspondiente: mesPago,
+                        monto: alumno.precio_mensual,
+                        fecha_pago: new Date().toISOString().split('T')[0]
+                    }
+                ]);
+                if (pagoError) console.error("Error al registrar pago automático:", pagoError.message);
+            }
 
             setOpen(false);
             setFormData({
@@ -85,7 +104,9 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                 disciplina: "",
                 entrenador_id: "",
                 entrenador_nombre: "",
-                precio_mensual: ""
+                precio_mensual: "",
+                fecha_ingreso: new Date().toISOString().split('T')[0],
+                registrarPago: true
             });
             onAlumnoCreated();
         } catch (err: any) {
@@ -172,19 +193,45 @@ export function NuevoAlumnoModal({ onAlumnoCreated }: { onAlumnoCreated: () => v
                             </Select>
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="precio" className="text-foreground">Cuota Mensual (€/$)</Label>
-                        <Input
-                            id="precio"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            required
-                            className="bg-background border-border"
-                            value={formData.precio_mensual}
-                            onChange={(e) => setFormData({ ...formData, precio_mensual: e.target.value })}
-                            placeholder="Ej: 50.00"
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="precio" className="text-foreground">Cuota Mensual (€/$)</Label>
+                            <Input
+                                id="precio"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                required
+                                className="bg-background border-border"
+                                value={formData.precio_mensual}
+                                onChange={(e) => setFormData({ ...formData, precio_mensual: e.target.value })}
+                                placeholder="Ej: 50.00"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="fecha_ingreso" className="text-foreground">Fecha Ingreso</Label>
+                            <Input
+                                id="fecha_ingreso"
+                                type="date"
+                                required
+                                className="bg-background border-border"
+                                value={formData.fecha_ingreso}
+                                onChange={(e) => setFormData({ ...formData, fecha_ingreso: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 py-2">
+                        <input
+                            type="checkbox"
+                            id="registrarPago"
+                            checked={formData.registrarPago}
+                            onChange={(e) => setFormData({ ...formData, registrarPago: e.target.checked })}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                         />
+                        <Label htmlFor="registrarPago" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                            Registrar cobro del primer mes automáticamente
+                        </Label>
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-white">
