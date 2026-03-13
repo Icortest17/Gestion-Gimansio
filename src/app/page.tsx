@@ -295,9 +295,18 @@ export default function Home() {
   };
 
   const handleDeleteAlumno = async (id: string) => {
-    if (!confirm("Esta acción ocultará al alumno a partir de este mes inclusive. Sus datos históricos se mantendrán. ¿Continuar?")) return;
+    if (!confirm("Esta acción ocultará al alumno a partir de este mes inclusive y ANULARÁ su pago si ya ha sido cobrado. ¿Continuar?")) return;
     try {
       const { start: startOfMonth } = getStartAndEndOfMonth(mesActualStr);
+
+      // 1. Eliminar pago del mes seleccionado si existe (simula devolución)
+      await supabase
+        .from("registro_pagos")
+        .delete()
+        .eq("alumno_id", id)
+        .eq("mes_correspondiente", mesActualStr);
+
+      // 2. Aplicar baja por fecha
       const { error } = await supabase
         .from("perfiles_alumnos")
         .update({ fecha_baja: startOfMonth })
