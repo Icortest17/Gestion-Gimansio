@@ -61,12 +61,7 @@ export default function Home() {
   async function loadData() {
     setLoading(true);
     try {
-      // 1. Ejecutar Sincronización de Automatización (Gastos Fijos + Sueldos)
-      // Pasamos los alumnos cargados previamente si es posible, o los cargamos dentro
-      const { data: alumnosRaw } = await supabase.from("perfiles_alumnos").select("*");
-      await checkAndApplyAutomation(alumnosRaw || []);
-
-      // 2. Cargar Disciplinas para filtros
+      // 1. Cargar Disciplinas para filtros
       const { data: dData } = await supabase.from("disciplinas").select("*").order("nombre");
       if (dData) setDisciplinas(dData);
 
@@ -108,7 +103,11 @@ export default function Home() {
         .eq("mes_correspondiente", mesActualStr);
 
       if (pgError) throw new Error(`Pagos: ${pgError.message}`);
-      setPagosMesActual(pagosData || []);
+      const currentPagos = pagosData || [];
+      setPagosMesActual(currentPagos);
+
+      // 5. Automatización (Ahora con alumnos filtrados y pagos del mes)
+      await checkAndApplyAutomation(alumnosFiltrados, currentPagos);
 
       // 5. Cargar Gastos del mes (Reales y Fijos ya insertados)
       const { data: gastosData, error: gsError } = await supabase
@@ -127,7 +126,7 @@ export default function Home() {
     }
   }
 
-  async function checkAndApplyAutomation(alumnos: Alumno[]) {
+  async function checkAndApplyAutomation(alumnos: Alumno[], pagos: Pago[]) {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
@@ -170,7 +169,7 @@ export default function Home() {
         }
 
         // --- PARTE B: Sueldos Entrenadores (Comisiones) ---
-        const comisiones = await calculateCommissions(alumnos);
+        const comisiones = await calculateCommissions(alumnos, pagos);
         const validas = comisiones.filter(c => c.monto > 0);
         if (validas.length > 0) {
           insertsGastos.push(...validas.map(c => ({
@@ -196,7 +195,7 @@ export default function Home() {
           .eq("categoria", "Sueldos")
           .like("descripcion", "Pago Sueldo:%");
 
-        const comisiones = await calculateCommissions(alumnos);
+        const comisiones = await calculateCommissions(alumnos, pagos);
 
         // 1. Insertar sueldos faltantes (que superen los 0€)
         const faltantes = comisiones.filter(c =>
@@ -208,7 +207,7 @@ export default function Home() {
             descripcion: `Pago Sueldo: ${c.coach}`,
             monto: c.monto,
             categoria: 'Sueldos',
-            fecha_gasto: new Date().toISOString().split('T')[0],
+            fecha_gasto: startOfMonth, // Usar inicio de mes para evitar duplicados por desfase de fecha
             origen_fijo_id: null
           })));
         }
@@ -237,12 +236,17 @@ export default function Home() {
     }
   }
 
-  async function calculateCommissions(alumnos: Alumno[]) {
+  async function calculateCommissions(alumnos: Alumno[], pagos: Pago[]) {
     const { data: coaches } = await supabase.from("entrenadores").select("*");
     if (!coaches) return [];
 
     return coaches.map(coach => {
-      const myAlumnos = alumnos.filter(a => a.entrenador_id === coach.id);
+      // Filtrar alumnos que pertenecen a este coach Y que han pagado este mes
+      const myAlumnos = alumnos.filter(a => {
+        const belongsToCoach = a.entrenador_id === coach.id;
+        const hasPaidThisMonth = pagos.some(p => p.alumno_id === a.id);
+        return belongsToCoach && hasPaidThisMonth;
+      });
       const porcentaje = coach.porcentaje_comision || 0;
       const totalVal = myAlumnos.reduce((acc, curr) => acc + (Number(curr.precio_mensual) * (porcentaje / 100)), 0);
       return { coach: coach.nombre, monto: totalVal };
