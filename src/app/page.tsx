@@ -114,6 +114,7 @@ export default function Home() {
   }
 
   async function checkAndApplyAutomation(alumnos: Alumno[]) {
+    if (isSyncing) return;
     setIsSyncing(true);
     try {
       const { data: registro } = await supabase
@@ -123,7 +124,17 @@ export default function Home() {
         .single();
 
       if (!registro) {
-        console.log("Detectado nuevo mes. Generando gastos fijos y sueldos...");
+        // Marcamos el mes como procesado INMEDIATAMENTE para bloquear otras ejecuciones
+        const { error: lockError } = await supabase
+          .from("registro_automatizacion")
+          .insert([{ mes_año: mesActualStr }]);
+
+        if (lockError) {
+          console.log("El mes ya ha sido procesado por otra instancia.");
+          return;
+        }
+
+        console.log(`Iniciando automatización para: ${mesActualStr}`);
 
         // --- PARTE A: Gastos Fijos ---
         const { data: fijos } = await supabase
@@ -132,13 +143,14 @@ export default function Home() {
           .eq("activo", true);
 
         const insertsGastos: any[] = [];
+        const { start: hoyStr } = getStartAndEndOfMonth(mesActualStr);
 
         if (fijos && fijos.length > 0) {
           insertsGastos.push(...fijos.map(f => ({
             descripcion: f.descripcion,
             monto: f.monto,
             categoria: f.categoria,
-            fecha_gasto: new Date().toISOString().split('T')[0],
+            fecha_gasto: hoyStr,
             origen_fijo_id: f.id
           })));
         }
@@ -151,18 +163,14 @@ export default function Home() {
             descripcion: `Pago Sueldo: ${c.coach}`,
             monto: c.monto,
             categoria: 'Sueldos',
-            fecha_gasto: new Date().toISOString().split('T')[0],
+            fecha_gasto: hoyStr,
             origen_fijo_id: null
           })));
         }
 
-        // Insertar todos de golpe si hay algo
         if (insertsGastos.length > 0) {
           await supabase.from("gastos").insert(insertsGastos);
         }
-
-        // Marcar mes como procesado
-        await supabase.from("registro_automatizacion").insert([{ mes_año: mesActualStr }]);
       } else {
         // Mes ya procesado: sincronización dinámica de comisiones
         const { start: startOfMonth, end: endOfMonth } = getStartAndEndOfMonth(mesActualStr);
