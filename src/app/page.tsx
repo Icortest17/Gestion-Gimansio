@@ -121,6 +121,9 @@ export default function Home() {
       if (!gsError) {
         setGastosMesActual(gastosData || []);
       }
+
+      // 6. Sincronizar con Agenda (Contactos históricos)
+      await syncWithAgenda(alumnosData || []);
     } catch (err: any) {
       console.error("Error Dashboard:", err.message);
     } finally {
@@ -253,6 +256,38 @@ export default function Home() {
       const totalVal = myAlumnos.reduce((acc, curr) => acc + (Number(curr.precio_mensual) * (porcentaje / 100)), 0);
       return { coach: coach.nombre, monto: totalVal };
     });
+  }
+
+  async function syncWithAgenda(alumnos: Alumno[]) {
+    try {
+      // 1. Obtener todos los pagos históricos para determinar la última fecha de pago de cada uno
+      const { data: todosLosPagos } = await supabase
+        .from("registro_pagos")
+        .select("alumno_id, fecha_pago")
+        .order("fecha_pago", { ascending: false });
+
+      const lastPaymentMap: Record<string, string> = {};
+      todosLosPagos?.forEach(p => {
+        if (p.alumno_id && p.fecha_pago && !lastPaymentMap[p.alumno_id]) {
+          lastPaymentMap[p.alumno_id] = p.fecha_pago;
+        }
+      });
+
+      // 2. Preparar los contactos para Upsert
+      const contactsToSync = alumnos.map(a => ({
+        nombre_completo: a.nombre_completo,
+        telefono: a.telefono,
+        fecha_ultimo_pago: lastPaymentMap[a.id] || null
+      }));
+
+      if (contactsToSync.length > 0) {
+        await supabase
+          .from("contactos")
+          .upsert(contactsToSync, { onConflict: "nombre_completo" });
+      }
+    } catch (error: any) {
+      console.error("Error sincronizando agenda:", error.message);
+    }
   }
 
   const refreshAlumnos = async () => {

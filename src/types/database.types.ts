@@ -9,6 +9,30 @@
 export type Database = {
   public: {
     Tables: {
+      contactos: {
+        Row: {
+          id: string
+          nombre_completo: string
+          telefono: string | null
+          fecha_ultimo_pago: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nombre_completo: string
+          telefono?: string | null
+          fecha_ultimo_pago?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nombre_completo?: string
+          telefono?: string | null
+          fecha_ultimo_pago?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       disciplinas: {
         Row: {
           id: string

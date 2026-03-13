@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, History, Users, ShieldCheck, LogOut, Menu, X, TrendingUp } from "lucide-react";
+import { LayoutDashboard, History, Users, ShieldCheck, LogOut, Menu, X, TrendingUp, Contact } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ const menuItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Equipo", href: "/equipo", icon: Users },
     { name: "Gastos", href: "/gastos", icon: TrendingUp },
+    { name: "Agenda", href: "/agenda", icon: Contact },
     { name: "Historial", href: "/historial", icon: History },
 ];
 
