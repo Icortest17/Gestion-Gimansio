@@ -84,9 +84,11 @@ export default function Home() {
 
         const esRecurrente = (a as any).es_recurrente !== false; // Default true
         const estaActivo = (a as any).activo !== false; // Default true
+        const fechaBaja = (a as any).fecha_baja;
 
-        // 2. Si no es activo, no lo mostramos (baja del sistema)
+        // 2. Si no es activo o tiene fecha de baja anterior/igual a este mes, no lo mostramos
         if (!estaActivo) return false;
+        if (fechaBaja && fechaBaja <= startOfMonth) return false;
 
         // 3. Si es recurrente, se muestra siempre desde su fecha de ingreso
         if (esRecurrente) return true;
@@ -258,13 +260,20 @@ export default function Home() {
   };
 
   const handleDeleteAlumno = async (id: string) => {
-    if (!confirm("¿Estás seguro de eliminar a este alumno?")) return;
+    if (!confirm("Esta acción ocultará al alumno a partir de este mes inclusive. Sus datos históricos se mantendrán. ¿Continuar?")) return;
     try {
-      const { error } = await supabase.from("perfiles_alumnos").delete().eq("id", id);
+      const { start: startOfMonth } = getStartAndEndOfMonth(mesActualStr);
+      const { error } = await supabase
+        .from("perfiles_alumnos")
+        .update({ fecha_baja: startOfMonth })
+        .eq("id", id);
+
       if (error) throw error;
-      setAlumnos((prev) => prev.filter((a) => a.id !== id));
+
+      // Recargar para aplicar el nuevo filtro
+      loadData();
     } catch (err: any) {
-      alert("Error al eliminar alumno: " + err.message);
+      alert("Error al dar de baja al alumno: " + err.message);
     }
   };
 

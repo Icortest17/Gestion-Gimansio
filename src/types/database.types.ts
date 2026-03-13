@@ -116,6 +116,7 @@ export type Database = {
           entrenador_asignado: string
           entrenador_id: string | null
           fecha_ingreso: string | null
+          fecha_baja: string | null
           id: string
           nombre_completo: string
           precio_mensual: number
@@ -126,6 +127,7 @@ export type Database = {
           entrenador_asignado: string
           entrenador_id?: string | null
           fecha_ingreso?: string | null
+          fecha_baja?: string | null
           id?: string
           nombre_completo: string
           precio_mensual: number
@@ -136,6 +138,7 @@ export type Database = {
           entrenador_asignado?: string
           entrenador_id?: string | null
           fecha_ingreso?: string | null
+          fecha_baja?: string | null
           id?: string
           nombre_completo?: string
           precio_mensual?: number
