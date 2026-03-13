@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, CreditCard, Loader2, MoreVertical, Trash, Pencil, Sparkles } from "lucide-react";
 import { NuevoAlumnoModal } from "@/components/NuevoAlumnoModal";
 import { EditarAlumnoModal } from "@/components/EditarAlumnoModal";
+import { CobrarMesModal } from "@/components/CobrarMesModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -120,7 +121,7 @@ export default function Home() {
           .select("*")
           .eq("activo", true);
 
-        const insertsGastos = [];
+        const insertsGastos: any[] = [];
 
         if (fijos && fijos.length > 0) {
           insertsGastos.push(...fijos.map(f => ({
@@ -134,8 +135,9 @@ export default function Home() {
 
         // --- PARTE B: Sueldos Entrenadores (Comisiones) ---
         const comisiones = await calculateCommissions(alumnos);
-        if (comisiones.length > 0) {
-          insertsGastos.push(...comisiones.map(c => ({
+        const validas = comisiones.filter(c => c.monto > 0);
+        if (validas.length > 0) {
+          insertsGastos.push(...validas.map(c => ({
             descripcion: `Pago Sueldo: ${c.coach}`,
             monto: c.monto,
             categoria: 'Sueldos',
@@ -151,6 +153,49 @@ export default function Home() {
 
         // Marcar mes como procesado
         await supabase.from("registro_automatizacion").insert([{ mes_año: mesActualStr }]);
+      } else {
+        // Mes ya procesado: sincronización dinámica de comisiones
+        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+        const { data: sueldosExistentes } = await supabase
+          .from("gastos")
+          .select("id, descripcion, monto")
+          .gte("fecha_gasto", startOfMonth)
+          .eq("categoria", "Sueldos")
+          .like("descripcion", "Pago Sueldo:%");
+
+        const comisiones = await calculateCommissions(alumnos);
+
+        // 1. Insertar sueldos faltantes (que superen los 0€)
+        const faltantes = comisiones.filter(c =>
+          c.monto > 0 && !sueldosExistentes?.some(s => s.descripcion === `Pago Sueldo: ${c.coach}`)
+        );
+
+        if (faltantes.length > 0) {
+          await supabase.from("gastos").insert(faltantes.map(c => ({
+            descripcion: `Pago Sueldo: ${c.coach}`,
+            monto: c.monto,
+            categoria: 'Sueldos',
+            fecha_gasto: new Date().toISOString().split('T')[0],
+            origen_fijo_id: null
+          })));
+        }
+
+        // 2. Actualizar o eliminar sueldos existentes que cambiaron de monto
+        const desactualizados = comisiones.filter(c => {
+          const existente = sueldosExistentes?.find(s => s.descripcion === `Pago Sueldo: ${c.coach}`);
+          return existente && existente.monto !== c.monto;
+        });
+
+        for (const c of desactualizados) {
+          const existente = sueldosExistentes?.find(s => s.descripcion === `Pago Sueldo: ${c.coach}`);
+          if (existente) {
+            if (c.monto === 0) {
+              await supabase.from("gastos").delete().eq("id", existente.id);
+            } else {
+              await supabase.from("gastos").update({ monto: c.monto }).eq("id", existente.id);
+            }
+          }
+        }
       }
     } catch (e) {
       console.error("Error in automation engine:", e);
@@ -168,7 +213,7 @@ export default function Home() {
       const porcentaje = coach.porcentaje_comision || 0;
       const totalVal = myAlumnos.reduce((acc, curr) => acc + (Number(curr.precio_mensual) * (porcentaje / 100)), 0);
       return { coach: coach.nombre, monto: totalVal };
-    }).filter(c => c.monto > 0); // Solo insertar si hay algo que cobrar
+    });
   }
 
   const refreshAlumnos = async () => {
@@ -183,27 +228,6 @@ export default function Home() {
       setAlumnos((prev) => prev.filter((a) => a.id !== id));
     } catch (err: any) {
       alert("Error al eliminar alumno: " + err.message);
-    }
-  };
-
-  const handleRegistrarPago = async (alumno: Alumno) => {
-    setProcessingPago(alumno.id);
-    try {
-      const { data, error } = await supabase
-        .from("registro_pagos")
-        .insert([{
-          alumno_id: alumno.id,
-          monto: alumno.precio_mensual,
-          mes_correspondiente: mesActualStr,
-        }])
-        .select()
-        .single();
-      if (error) throw error;
-      if (data) setPagosMesActual((prev) => [...prev, data]);
-    } catch (err: any) {
-      alert("Error al registrar pago: " + err.message);
-    } finally {
-      setProcessingPago(null);
     }
   };
 
@@ -346,19 +370,12 @@ export default function Home() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={pagado || processingPago === alumno.id}
-                          onClick={() => handleRegistrarPago(alumno)}
-                          className={`h-9 w-9 p-0 border-zinc-800 bg-black hover:border-rose-600 hover:text-white transition-all ${pagado ? "opacity-20 cursor-not-allowed group-hover:opacity-100" : "text-zinc-500"}`}
-                        >
-                          {processingPago === alumno.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <CreditCard className="h-4 w-4" />
-                          )}
-                        </Button>
+                        <CobrarMesModal
+                          alumno={alumno}
+                          mesActualPorDefecto={mesActualStr}
+                          onPagoCompletado={loadData}
+                          pagadoMesActual={pagado}
+                        />
 
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

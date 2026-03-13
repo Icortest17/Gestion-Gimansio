@@ -191,7 +191,7 @@ export default function HistorialPage() {
 
                     {!loading && resumenArray.length > 0 && (
                         <div className="bg-black border border-zinc-800 p-5 rounded-3xl w-full sm:w-72 shadow-2xl relative overflow-hidden group">
-                            <TrendChart data={resumenArray.map((r: any) => ({ mes: r.mes, total: r.balance })) as any} />
+                            <TrendChart data={resumenArray.map((r: any) => ({ mes: r.mes, total: r.balance, ingresos: r.ingresos, gastos: r.gastos })) as any} />
                         </div>
                     )}
                 </div>
@@ -237,12 +237,12 @@ export default function HistorialPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
-                                    <div className={`text-2xl font-black italic transition-colors ${mes.balance >= 0 ? (selectedMes === mes.mes ? 'text-emerald-400' : 'text-white') : 'text-rose-600'}`}>
+                                    <div className={`text-2xl font-black italic transition-colors ${mes.balance >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
                                         {mes.balance.toLocaleString()}€
                                     </div>
-                                    <div className="flex items-center gap-1.5 pt-1">
-                                        <div className="text-[9px] font-bold text-zinc-600 uppercase">IN: <span className="text-emerald-500/70">{mes.ingresos}€</span></div>
-                                        <div className="text-[9px] font-bold text-zinc-600 uppercase">OUT: <span className="text-rose-500/70">{mes.gastos}€</span></div>
+                                    <div className="flex items-center gap-3 pt-2">
+                                        <div className="text-[10px] font-bold uppercase">IN: <span className="text-emerald-400">{mes.ingresos}€</span></div>
+                                        <div className="text-[10px] font-bold uppercase">OUT: <span className="text-rose-400">{mes.gastos}€</span></div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -259,7 +259,7 @@ export default function HistorialPage() {
                         <TrendingUp className="text-emerald-500 h-5 w-5" />
                         <h3 className="font-bold text-white uppercase tracking-widest text-xs italic">Ingresos por Cuotas</h3>
                     </div>
-                    <div className="rounded-3xl border border-zinc-900 bg-black/50 overflow-hidden shadow-2xl">
+                    <div className="rounded-3xl border border-emerald-900/30 bg-black/50 overflow-hidden shadow-2xl">
                         <Table>
                             <TableHeader>
                                 <TableRow className="border-zinc-900 hover:bg-transparent bg-zinc-950/80">
@@ -273,7 +273,7 @@ export default function HistorialPage() {
                                         <TableCell className="font-bold text-white uppercase text-[10px] tracking-tighter py-3 pl-6">
                                             {pago.perfiles_alumnos?.nombre_completo || "S/N"}
                                         </TableCell>
-                                        <TableCell className="text-right font-black text-emerald-500 italic pr-6 text-sm">
+                                        <TableCell className="text-right font-black text-emerald-400 italic pr-6 text-lg">
                                             +{pago.monto}€
                                         </TableCell>
                                     </TableRow>
@@ -289,7 +289,7 @@ export default function HistorialPage() {
                         <TrendingDown className="text-rose-500 h-5 w-5" />
                         <h3 className="font-bold text-white uppercase tracking-widest text-xs italic">Gastos Operativos</h3>
                     </div>
-                    <div className="rounded-3xl border border-zinc-900 bg-black/50 overflow-hidden shadow-2xl">
+                    <div className="rounded-3xl border border-rose-900/30 bg-black/50 overflow-hidden shadow-2xl">
                         <Table>
                             <TableHeader>
                                 <TableRow className="border-zinc-900 hover:bg-transparent bg-zinc-950/80">
@@ -303,7 +303,7 @@ export default function HistorialPage() {
                                         <TableCell className="font-bold text-white uppercase text-[10px] tracking-tighter py-3 pl-6">
                                             {gasto.descripcion}
                                         </TableCell>
-                                        <TableCell className="text-right font-black text-rose-500 italic pr-6 text-sm">
+                                        <TableCell className="text-right font-black text-rose-400 italic pr-6 text-lg">
                                             -{gasto.monto}€
                                         </TableCell>
                                     </TableRow>

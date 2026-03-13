@@ -147,7 +147,11 @@ export default function GastosPage() {
         if (!error) loadData();
     }
 
-    const totalGastosMes = gastos.reduce((acc, curr) => acc + curr.monto, 0);
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const gastosMesActual = gastos.filter(g => g.fecha_gasto && g.fecha_gasto >= startOfMonth);
+    const totalGastosMes = gastosMesActual.reduce((acc, curr) => acc + curr.monto, 0);
+
+    const mesNombre = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 
     return (
         <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
@@ -164,7 +168,7 @@ export default function GastosPage() {
                     <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
                         <TrendingDown size={50} className="text-rose-600" />
                     </div>
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1 italic">Consumo Total Acumulado</p>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1 italic">Gastos de {mesNombre}</p>
                     <div className="text-4xl font-black text-white italic">{totalGastosMes.toLocaleString()}€</div>
                 </Card>
             </div>
