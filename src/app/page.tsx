@@ -104,14 +104,22 @@ export default function Home() {
       const { data: dData } = await supabase.from("disciplinas").select("*").order("nombre");
       if (dData) setDisciplinas(dData);
 
-      // 3. Cargar Alumnos (con orden para la tabla)
+      const { start: startOfMonth, end: endOfMonth } = getStartAndEndOfMonth(mesActualStr);
+
+      // 3. Cargar Alumnos (con orden para la tabla) y filtrar los que entraron después de este mes
       const { data: alumnosData, error: alError } = await supabase
         .from("perfiles_alumnos")
         .select("*")
         .order("nombre_completo");
 
       if (alError) throw new Error(`Alumnos: ${alError.message}`);
-      setAlumnos(alumnosData || []);
+
+      // Filtrar para no mostrar alumnos que se dieron de alta en un mes posterior al seleccionado
+      const alumnosFiltrados = (alumnosData || []).filter(a => {
+        if (!a.fecha_ingreso) return true;
+        return a.fecha_ingreso <= endOfMonth;
+      });
+      setAlumnos(alumnosFiltrados);
 
       // 4. Cargar Pagos del mes
       const { data: pagosData, error: pgError } = await supabase
@@ -123,7 +131,6 @@ export default function Home() {
       setPagosMesActual(pagosData || []);
 
       // 5. Cargar Gastos del mes (Reales y Fijos ya insertados)
-      const { start: startOfMonth, end: endOfMonth } = getStartAndEndOfMonth(mesActualStr);
       const { data: gastosData, error: gsError } = await supabase
         .from("gastos")
         .select("*")
