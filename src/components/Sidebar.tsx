@@ -47,8 +47,8 @@ export function Sidebar() {
                         <ShieldCheck className="text-white h-6 w-6" />
                     </div>
                     <div>
-                        <h2 className="text-white font-bold leading-tight uppercase tracking-tighter">FightManager</h2>
-                        <span className="text-rose-500 text-[10px] uppercase font-bold tracking-[0.2em] -mt-1 block">Pro MVP</span>
+                        <h2 className="text-white font-bold leading-tight uppercase tracking-tighter">Indesport</h2>
+                        <span className="text-rose-500 text-[10px] uppercase font-bold tracking-[0.2em] -mt-1 block">Contabilidad</span>
                     </div>
                 </div>
 
@@ -81,18 +81,9 @@ export function Sidebar() {
                     })}
                 </nav>
 
-                {/* Bottom Section */}
-                <div className="p-4 border-t border-zinc-900">
-                    <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-900 mb-4">
-                        <p className="text-xs text-zinc-500 mb-2">Soporte Premium</p>
-                        <Button className="w-full h-8 text-[11px] bg-rose-600/10 text-rose-500 border border-rose-600/20 hover:bg-rose-600 hover:text-white">
-                            Ayuda & Guías
-                        </Button>
-                    </div>
-                    <button className="flex items-center gap-3 px-4 py-2 w-full text-zinc-500 hover:text-white transition-colors text-sm">
-                        <LogOut size={18} />
-                        <span>Cerrar Sesión</span>
-                    </button>
+                {/* Bottom Section - Empty or Minimal as session is managed externally */}
+                <div className="p-4 border-t border-zinc-900 opacity-20 hover:opacity-100 transition-opacity">
+                    <p className="text-[10px] text-zinc-500 text-center uppercase tracking-widest">Indesport v2.0</p>
                 </div>
             </div>
 

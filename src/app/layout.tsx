@@ -6,8 +6,8 @@ import { Sidebar } from '@/components/Sidebar';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'FightManager Pro',
-  description: 'Gestión de gimnasios y academias de artes marciales.',
+  title: 'Indesport Contabilidad',
+  description: 'Gestión contable profesional para gimnasios.',
 };
 
 export default function RootLayout({
